@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import pandas as pd
 import json
 import os
@@ -30,7 +30,7 @@ if not os.path.exists(MEALS_FILE):
 
 @app.route("/")
 def home():
-    return app.send_static_file("index.html")
+    return send_from_directory("static", "index.html")
 
 @app.route("/food-list", methods=["GET"])
 def get_food_list():
@@ -117,44 +117,6 @@ def get_meal(name):
         return jsonify(meals[name])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route("/get-food-options", methods=["POST"])
-def get_food_options():
-    data = request.get_json()
-    try:
-        food_type = data.get("food_type", None)
-        calories = float(data["calories"])
-        meals_per_day = int(data["meals"])
-        ratio = float(data["ratio"])
-
-        kcal_per_meal = calories / meals_per_day
-        kcal_unit = 22
-        units_per_meal = kcal_per_meal / kcal_unit
-
-        total_parts = ratio + 1 + 0.1
-        fat_kcal = (ratio / total_parts) * kcal_per_meal
-        protein_kcal = (1 / total_parts) * kcal_per_meal
-        carbs_kcal = kcal_per_meal - (fat_kcal + protein_kcal)
-
-        target_macros = {
-            "Fat": round(fat_kcal / 9, 1),
-            "Protein": round(protein_kcal / 4, 1),
-            "Carbs": round(carbs_kcal / 4, 1)
-        }
-
-        filtered_df = all_foods_df
-        if food_type:
-            filtered_df = filtered_df[filtered_df["Type"].str.lower() == food_type.lower()] if "Type" in filtered_df else filtered_df
-
-        food_options = filtered_df[["Item", "Protein", "Fat", "Carbs"]].to_dict(orient="records")
-
-        return jsonify({
-            "per_meal_targets": target_macros,
-            "food_options": food_options[:50]
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000, debug=True)
