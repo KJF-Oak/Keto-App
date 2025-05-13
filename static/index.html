@@ -1,63 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Keto Meal Builder</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 2rem; }
-    input, select, button { padding: 0.4rem; margin: 0.3rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: center; }
-    .row-control { margin: 1rem 0; }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Keto Meal Builder</h1>
+<body class="bg-gray-50 text-gray-800 p-4 sm:p-6 max-w-4xl mx-auto">
+  <h1 class="text-3xl font-bold mb-4">🥑 Keto Meal Builder</h1>
 
-  <label>Target Ratio (Fat : [Protein + Carbs]):
-    <input type="number" id="targetRatio" value="2" step="0.1" />
-  </label>
-  <button onclick="addFoodRow()">+ Add Food Item</button>
-
-  <form id="mealForm">
-    <table id="foodTable">
-      <thead>
-        <tr>
-          <th>Food</th>
-          <th>% Protein</th>
-          <th>% Fat</th>
-          <th>% Carbs</th>
-          <th>Input Macro (g)</th>
-          <th>Macro Type</th>
-          <th>Total Grams</th>
-          <th>Remove</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </form>
-
-  <h2>Meal Summary</h2>
-  <div id="results"></div>
-
-  <h2>Save / Load Meal</h2>
-  <label>Meal Name:
-    <input list="mealList" id="mealName" />
-    <datalist id="mealList"></datalist>
-  </label>
-  <button onclick="saveMeal()">💾 Save</button>
-  <button onclick="loadMeal()">📥 Load</button>
-  <button onclick="deleteMeal()">🗑️ Delete</button>
-
-  <h2>Add a New Food Item</h2>
-  <div>
-    <label>Name: <input id="newName" /></label>
-    <label>% Protein: <input type="number" id="newProt" /></label>
-    <label>% Fat: <input type="number" id="newFat" /></label>
-    <label>% Carbs: <input type="number" id="newCarb" /></label>
-    <button type="button" onclick="addNewFood()">Add to List</button>
+  <div class="mb-6">
+    <label class="block mb-2 font-semibold">Target Ratio (Fat : [Protein + Carbs])</label>
+    <input type="number" id="targetRatio" value="2" step="0.1" class="w-full sm:w-64 p-2 rounded border" />
   </div>
-  <p id="addStatus"></p>
+
+  <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+    <button onclick="addFoodRow()" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700">+ Add Food Item</button>
+    <div class="flex-1">
+      <label class="block font-semibold mb-1">Meal Name</label>
+      <input list="mealList" id="mealName" class="w-full p-2 rounded border" placeholder="e.g. Keto Lunch" />
+      <datalist id="mealList"></datalist>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="saveMeal()" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">💾 Save</button>
+      <button onclick="loadMeal()" class="bg-yellow-500 text-white px-4 py-2 rounded shadow hover:bg-yellow-600">📥 Load</button>
+      <button onclick="deleteMeal()" class="bg-red-600 text-white px-4 py-2 rounded shadow hover:bg-red-700">🗑 Delete</button>
+    </div>
+  </div>
+
+  <div id="foodContainer" class="space-y-4 mb-8"></div>
+
+  <h2 class="text-xl font-bold mb-2">📊 Meal Summary</h2>
+  <div id="results" class="bg-white p-4 rounded shadow mb-8"></div>
+
+  <h2 class="text-xl font-bold mb-2">🧪 Add a New Food Item</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+    <input id="newName" placeholder="Name" class="p-2 border rounded" />
+    <input type="number" id="newProt" placeholder="% Protein" class="p-2 border rounded" />
+    <input type="number" id="newFat" placeholder="% Fat" class="p-2 border rounded" />
+    <input type="number" id="newCarb" placeholder="% Carbs" class="p-2 border rounded" />
+  </div>
+  <button onclick="addNewFood()" class="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700">Add to List</button>
+  <p id="addStatus" class="mt-2 text-sm text-gray-700"></p>
 
   <datalist id="foodOptions"></datalist>
 
@@ -80,152 +64,127 @@
     }
 
     function addFoodRow(foodName = "", macroType = "Protein", grams = "") {
-      const tbody = document.querySelector("#foodTable tbody");
-      const row = document.createElement("tr");
-
-      row.innerHTML = `
-        <td><input list="foodOptions" class="food-select" value="${foodName}" oninput="populateMacros(this)" /></td>
-        <td><input type="number" class="pct-prot" readonly /></td>
-        <td><input type="number" class="pct-fat" readonly /></td>
-        <td><input type="number" class="pct-carb" readonly /></td>
-        <td><input type="number" class="macro-grams" value="${grams}" oninput="updateGrams(this)" /></td>
-        <td>
-          <select class="macro-type" onchange="updateGrams(this.closest('tr').querySelector('.macro-grams'))">
+      const id = Date.now();
+      const div = document.createElement("div");
+      div.className = "bg-white p-4 rounded shadow space-y-2";
+      div.innerHTML = `
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <input list="foodOptions" value="${foodName}" oninput="populateMacros(this)" class="food-select p-2 border rounded" placeholder="Select food" />
+          <input type="number" class="pct-prot p-2 border rounded" placeholder="% Protein" readonly />
+          <input type="number" class="pct-fat p-2 border rounded" placeholder="% Fat" readonly />
+          <input type="number" class="pct-carb p-2 border rounded" placeholder="% Carbs" readonly />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <input type="number" value="${grams}" class="macro-grams p-2 border rounded" placeholder="Input macro (g)" oninput="updateGrams(this)" />
+          <select class="macro-type p-2 border rounded" onchange="updateGrams(this.closest('div').previousElementSibling.querySelector('.macro-grams'))">
             <option value="Protein"${macroType === "Protein" ? " selected" : ""}>Protein</option>
             <option value="Fat"${macroType === "Fat" ? " selected" : ""}>Fat</option>
             <option value="Carbs"${macroType === "Carbs" ? " selected" : ""}>Carbs</option>
           </select>
-        </td>
-        <td><input type="number" class="total-grams" readonly /></td>
-        <td><button type="button" onclick="this.closest('tr').remove(); triggerRecalc()">🗑️</button></td>
-      `;
-
-      tbody.appendChild(row);
-      if (foodName) populateMacros(row.querySelector(".food-select"));
+          <input type="number" class="total-grams p-2 border rounded" placeholder="Total grams" readonly />
+          <button onclick="this.closest('div.bg-white').remove(); triggerRecalc()" class="bg-red-500 text-white px-3 py-2 rounded shadow hover:bg-red-600">Remove</button>
+        </div>`;
+      document.getElementById("foodContainer").appendChild(div);
+      if (foodName) populateMacros(div.querySelector(".food-select"));
     }
 
     function populateMacros(input) {
       const selected = foodData.find(f => f.Item.toLowerCase() === input.value.toLowerCase());
       if (!selected) return;
-
-      const row = input.closest("tr");
-      row.querySelector(".pct-prot").value = selected.Protein;
-      row.querySelector(".pct-fat").value = selected.Fat;
-      row.querySelector(".pct-carb").value = selected.Carbs;
-
-      // Auto-select dominant macro type
+      const block = input.closest(".bg-white");
+      block.querySelector(".pct-prot").value = selected.Protein;
+      block.querySelector(".pct-fat").value = selected.Fat;
+      block.querySelector(".pct-carb").value = selected.Carbs;
       const dominant = (selected.Fat >= selected.Protein && selected.Fat >= selected.Carbs)
         ? "Fat" : (selected.Protein >= selected.Carbs ? "Protein" : "Carbs");
-
-      row.querySelector(".macro-type").value = dominant;
-
-      // Recalculate
-      updateGrams(row.querySelector(".macro-grams"));
+      block.querySelector(".macro-type").value = dominant;
+      updateGrams(block.querySelector(".macro-grams"));
     }
 
     function updateGrams(input) {
-      const row = input.closest("tr");
-      const type = row.querySelector(".macro-type").value;
+      const block = input.closest(".bg-white");
+      const type = block.querySelector(".macro-type").value;
       const grams = parseFloat(input.value);
-      if (isNaN(grams)) return;
-
       const pct = {
-        Protein: parseFloat(row.querySelector(".pct-prot").value),
-        Fat: parseFloat(row.querySelector(".pct-fat").value),
-        Carbs: parseFloat(row.querySelector(".pct-carb").value)
+        Protein: parseFloat(block.querySelector(".pct-prot").value),
+        Fat: parseFloat(block.querySelector(".pct-fat").value),
+        Carbs: parseFloat(block.querySelector(".pct-carb").value)
       };
-
-      if (!pct[type]) return;
-
+      if (!pct[type] || isNaN(grams)) return;
       const total = (grams / (pct[type] / 100)).toFixed(2);
-      row.querySelector(".total-grams").value = total;
+      block.querySelector(".total-grams").value = total;
       triggerRecalc();
     }
 
     function triggerRecalc() {
       let totalProt = 0, totalFat = 0, totalCarb = 0;
-
-      document.querySelectorAll("#foodTable tbody tr").forEach(row => {
-        const totalGrams = parseFloat(row.querySelector(".total-grams").value);
-        const protPct = parseFloat(row.querySelector(".pct-prot").value);
-        const fatPct = parseFloat(row.querySelector(".pct-fat").value);
-        const carbPct = parseFloat(row.querySelector(".pct-carb").value);
-        if (!isNaN(totalGrams)) {
-          totalProt += (protPct / 100) * totalGrams;
-          totalFat += (fatPct / 100) * totalGrams;
-          totalCarb += (carbPct / 100) * totalGrams;
+      document.querySelectorAll(".bg-white").forEach(block => {
+        const g = parseFloat(block.querySelector(".total-grams").value);
+        const p = parseFloat(block.querySelector(".pct-prot").value);
+        const f = parseFloat(block.querySelector(".pct-fat").value);
+        const c = parseFloat(block.querySelector(".pct-carb").value);
+        if (!isNaN(g)) {
+          totalProt += (p / 100) * g;
+          totalFat += (f / 100) * g;
+          totalCarb += (c / 100) * g;
         }
       });
-
       const ratio = totalFat / (totalProt + totalCarb);
-      const totalKcal = (totalProt * 4) + (totalFat * 9) + (totalCarb * 4);
-      const targetRatio = parseFloat(document.getElementById("targetRatio").value);
-      const isMatch = ratio >= targetRatio * 0.95 && ratio <= targetRatio * 1.05;
-
+      const kcal = totalProt * 4 + totalFat * 9 + totalCarb * 4;
+      const target = parseFloat(document.getElementById("targetRatio").value);
+      const pass = ratio >= target * 0.95 && ratio <= target * 1.05;
       document.getElementById("results").innerHTML = `
-        <p><strong>Total Protein:</strong> ${totalProt.toFixed(1)}g</p>
-        <p><strong>Total Fat:</strong> ${totalFat.toFixed(1)}g</p>
-        <p><strong>Total Carbs:</strong> ${totalCarb.toFixed(1)}g</p>
-        <p><strong>Total Calories:</strong> ${totalKcal.toFixed(1)} kcal</p>
-        <p><strong>Fat : (Protein + Carbs) Ratio:</strong> ${isNaN(ratio) ? '–' : ratio.toFixed(2)} ${isNaN(ratio) ? '' : isMatch ? '✅' : '⚠️'}</p>
-      `;
+        <p><strong>Protein:</strong> ${totalProt.toFixed(1)}g</p>
+        <p><strong>Fat:</strong> ${totalFat.toFixed(1)}g</p>
+        <p><strong>Carbs:</strong> ${totalCarb.toFixed(1)}g</p>
+        <p><strong>Calories:</strong> ${kcal.toFixed(1)} kcal</p>
+        <p><strong>Ratio:</strong> ${ratio.toFixed(2)} ${pass ? '✅' : '⚠️'}</p>`;
     }
 
     async function saveMeal() {
       const name = document.getElementById("mealName").value.trim();
       if (!name) return alert("Enter a meal name");
       const targetRatio = parseFloat(document.getElementById("targetRatio").value);
-      const rows = [...document.querySelectorAll("#foodTable tbody tr")].map(row => ({
-        food: row.querySelector(".food-select").value,
-        type: row.querySelector(".macro-type").value,
-        grams: row.querySelector(".macro-grams").value
+      const rows = [...document.querySelectorAll(".bg-white")].map(b => ({
+        food: b.querySelector(".food-select").value,
+        type: b.querySelector(".macro-type").value,
+        grams: b.querySelector(".macro-grams").value
       }));
-
       const res = await fetch("/save-meal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, targetRatio, rows })
       });
-
       const result = await res.json();
       if (result.success) {
-        alert("Meal saved");
+        alert("Meal saved!");
         loadMealNames();
-      } else {
-        alert("Error saving meal");
       }
     }
 
     async function loadMeal() {
       const name = document.getElementById("mealName").value.trim();
-      if (!name) return alert("Enter a meal name");
+      if (!name) return;
       const res = await fetch(`/meal/${encodeURIComponent(name)}`);
       const data = await res.json();
-      if (data.error) return alert("Meal not found");
-      document.querySelector("#targetRatio").value = data.targetRatio;
-      document.querySelector("#foodTable tbody").innerHTML = "";
+      if (data.error) return alert(data.error);
+      document.getElementById("targetRatio").value = data.targetRatio;
+      document.getElementById("foodContainer").innerHTML = "";
       data.rows.forEach(r => addFoodRow(r.food, r.type, r.grams));
       triggerRecalc();
     }
 
     async function deleteMeal() {
       const name = document.getElementById("mealName").value.trim();
-      if (!name) return alert("Please enter a meal name to delete.");
-
-      const confirmDelete = confirm(`Are you sure you want to delete the meal "${name}"?`);
-      if (!confirmDelete) return;
-
+      if (!name || !confirm(`Delete "${name}"?`)) return;
       const res = await fetch(`/delete-meal/${encodeURIComponent(name)}`, { method: "DELETE" });
       const result = await res.json();
-
       if (result.success) {
-        alert(`Meal "${name}" deleted.`);
+        alert(`Deleted "${name}"`);
         loadMealNames();
         document.getElementById("mealName").value = "";
-        document.querySelector("#foodTable tbody").innerHTML = "";
+        document.getElementById("foodContainer").innerHTML = "";
         triggerRecalc();
-      } else {
-        alert(`❌ Could not delete meal: ${result.error || "Unknown error"}`);
       }
     }
 
@@ -236,31 +195,21 @@
       const carb = parseFloat(document.getElementById("newCarb").value);
       const status = document.getElementById("addStatus");
       if (!name || isNaN(prot) || isNaN(fat) || isNaN(carb)) {
-        status.textContent = "❌ Please fill out all fields with valid values.";
+        status.textContent = "❌ Please fill out all fields.";
         return;
       }
-      const newFood = { Item: name, Protein: prot, Fat: fat, Carbs: carb };
-      try {
-        const res = await fetch("/add-food", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newFood)
-        });
-        const result = await res.json();
-        if (result.success) {
-          foodData.push(newFood);
-          foodData.sort((a, b) => a.Item.localeCompare(b.Item));
-          document.getElementById("foodOptions").innerHTML = foodData.map(f => `<option value="${f.Item}">`).join("");
-          status.textContent = `✅ Added "${name}" to the food list.`;
-          document.getElementById("newName").value = "";
-          document.getElementById("newProt").value = "";
-          document.getElementById("newFat").value = "";
-          document.getElementById("newCarb").value = "";
-        } else {
-          status.textContent = `❌ Error: ${result.error || 'Unknown issue'}`;
-        }
-      } catch (err) {
-        status.textContent = `❌ Request failed: ${err.message}`;
+      const res = await fetch("/add-food", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ Item: name, Protein: prot, Fat: fat, Carbs: carb })
+      });
+      const result = await res.json();
+      if (result.success) {
+        foodData.push({ Item: name, Protein: prot, Fat: fat, Carbs: carb });
+        foodData.sort((a, b) => a.Item.localeCompare(b.Item));
+        document.getElementById("foodOptions").innerHTML = foodData.map(f => `<option value="${f.Item}">`).join("");
+        status.textContent = `✅ Added "${name}"`;
+        ["newName", "newProt", "newFat", "newCarb"].forEach(id => document.getElementById(id).value = "");
       }
     }
 
