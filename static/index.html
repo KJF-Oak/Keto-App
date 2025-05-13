@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Keto Meal Builder</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; }
+    input, select, button { padding: 0.4rem; margin: 0.3rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: center; }
+    .row-control { margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Keto Meal Builder</h1>
+
+  <label>Target Ratio (Fat : [Protein + Carbs]):
+    <input type="number" id="targetRatio" value="2" step="0.1" />
+  </label>
+  <button onclick="addFoodRow()">+ Add Food Item</button>
+
+  <form id="mealForm">
+    <table id="foodTable">
+      <thead>
+        <tr>
+          <th>Food</th>
+          <th>% Protein</th>
+          <th>% Fat</th>
+          <th>% Carbs</th>
+          <th>Input Macro (g)</th>
+          <th>Macro Type</th>
+          <th>Total Grams</th>
+          <th>Remove</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </form>
+
+  <h2>Meal Summary</h2>
+  <div id="results"></div>
+
+  <h2>Save / Load Meal</h2>
+  <label>Meal Name:
+    <input list="mealList" id="mealName" />
+    <datalist id="mealList"></datalist>
+  </label>
+  <button onclick="saveMeal()">💾 Save</button>
+  <button onclick="loadMeal()">📥 Load</button>
+  <button onclick="deleteMeal()">🗑️ Delete</button>
+
+  <h2>Add a New Food Item</h2>
+  <div>
+    <label>Name: <input id="newName" /></label>
+    <label>% Protein: <input type="number" id="newProt" /></label>
+    <label>% Fat: <input type="number" id="newFat" /></label>
+    <label>% Carbs: <input type="number" id="newCarb" /></label>
+    <button type="button" onclick="addNewFood()">Add to List</button>
+  </div>
+  <p id="addStatus"></p>
+
+  <datalist id="foodOptions"></datalist>
+
+  <script>
+    let foodData = [];
+
+    async function loadFoodOptions() {
+      const res = await fetch("/food-list");
+      foodData = await res.json();
+      foodData.sort((a, b) => a.Item.localeCompare(b.Item));
+      document.getElementById("foodOptions").innerHTML =
+        foodData.map(f => `<option value="${f.Item}">`).join("");
+    }
+
+    async function loadMealNames() {
+      const res = await fetch("/meals");
+      const meals = await res.json();
+      document.getElementById("mealList").innerHTML =
+        meals.map(name => `<option value="${name}">`).join("");
+    }
+
+    function addFoodRow(foodName = "", macroType = "Protein", grams = "") {
+      const tbody = document.querySelector("#foodTable tbody");
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td><input list="foodOptions" class="food-select" value="${foodName}" oninput="populateMacros(this)" /></td>
+        <td><input type="number" class="pct-prot" readonly /></td>
+        <td><input type="number" class="pct-fat" readonly /></td>
+        <td><input type="number" class="pct-carb" readonly /></td>
+        <td><input type="number" class="macro-grams" value="${grams}" oninput="updateGrams(this)" /></td>
+        <td>
+          <select class="macro-type" onchange="updateGrams(this.closest('tr').querySelector('.macro-grams'))">
+            <option value="Protein"${macroType === "Protein" ? " selected" : ""}>Protein</option>
+            <option value="Fat"${macroType === "Fat" ? " selected" : ""}>Fat</option>
+            <option value="Carbs"${macroType === "Carbs" ? " selected" : ""}>Carbs</option>
+          </select>
+        </td>
+        <td><input type="number" class="total-grams" readonly /></td>
+        <td><button type="button" onclick="this.closest('tr').remove(); triggerRecalc()">🗑️</button></td>
+      `;
+
+      tbody.appendChild(row);
+      if (foodName) populateMacros(row.querySelector(".food-select"));
+    }
+
+    function populateMacros(input) {
+      const selected = foodData.find(f => f.Item.toLowerCase() === input.value.toLowerCase());
+      if (!selected) return;
+
+      const row = input.closest("tr");
+      row.querySelector(".pct-prot").value = selected.Protein;
+      row.querySelector(".pct-fat").value = selected.Fat;
+      row.querySelector(".pct-carb").value = selected.Carbs;
+
+      // Auto-select dominant macro type
+      const dominant = (selected.Fat >= selected.Protein && selected.Fat >= selected.Carbs)
+        ? "Fat" : (selected.Protein >= selected.Carbs ? "Protein" : "Carbs");
+
+      row.querySelector(".macro-type").value = dominant;
+
+      // Recalculate
+      updateGrams(row.querySelector(".macro-grams"));
+    }
+
+    function updateGrams(input) {
+      const row = input.closest("tr");
+      const type = row.querySelector(".macro-type").value;
+      const grams = parseFloat(input.value);
+      if (isNaN(grams)) return;
+
+      const pct = {
+        Protein: parseFloat(row.querySelector(".pct-prot").value),
+        Fat: parseFloat(row.querySelector(".pct-fat").value),
+        Carbs: parseFloat(row.querySelector(".pct-carb").value)
+      };
+
+      if (!pct[type]) return;
+
+      const total = (grams / (pct[type] / 100)).toFixed(2);
+      row.querySelector(".total-grams").value = total;
+      triggerRecalc();
+    }
+
+    function triggerRecalc() {
+      let totalProt = 0, totalFat = 0, totalCarb = 0;
+
+      document.querySelectorAll("#foodTable tbody tr").forEach(row => {
+        const totalGrams = parseFloat(row.querySelector(".total-grams").value);
+        const protPct = parseFloat(row.querySelector(".pct-prot").value);
+        const fatPct = parseFloat(row.querySelector(".pct-fat").value);
+        const carbPct = parseFloat(row.querySelector(".pct-carb").value);
+        if (!isNaN(totalGrams)) {
+          totalProt += (protPct / 100) * totalGrams;
+          totalFat += (fatPct / 100) * totalGrams;
+          totalCarb += (carbPct / 100) * totalGrams;
+        }
+      });
+
+      const ratio = totalFat / (totalProt + totalCarb);
+      const totalKcal = (totalProt * 4) + (totalFat * 9) + (totalCarb * 4);
+      const targetRatio = parseFloat(document.getElementById("targetRatio").value);
+      const isMatch = ratio >= targetRatio * 0.95 && ratio <= targetRatio * 1.05;
+
+      document.getElementById("results").innerHTML = `
+        <p><strong>Total Protein:</strong> ${totalProt.toFixed(1)}g</p>
+        <p><strong>Total Fat:</strong> ${totalFat.toFixed(1)}g</p>
+        <p><strong>Total Carbs:</strong> ${totalCarb.toFixed(1)}g</p>
+        <p><strong>Total Calories:</strong> ${totalKcal.toFixed(1)} kcal</p>
+        <p><strong>Fat : (Protein + Carbs) Ratio:</strong> ${isNaN(ratio) ? '–' : ratio.toFixed(2)} ${isNaN(ratio) ? '' : isMatch ? '✅' : '⚠️'}</p>
+      `;
+    }
+
+    async function saveMeal() {
+      const name = document.getElementById("mealName").value.trim();
+      if (!name) return alert("Enter a meal name");
+      const targetRatio = parseFloat(document.getElementById("targetRatio").value);
+      const rows = [...document.querySelectorAll("#foodTable tbody tr")].map(row => ({
+        food: row.querySelector(".food-select").value,
+        type: row.querySelector(".macro-type").value,
+        grams: row.querySelector(".macro-grams").value
+      }));
+
+      const res = await fetch("/save-meal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, targetRatio, rows })
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        alert("Meal saved");
+        loadMealNames();
+      } else {
+        alert("Error saving meal");
+      }
+    }
+
+    async function loadMeal() {
+      const name = document.getElementById("mealName").value.trim();
+      if (!name) return alert("Enter a meal name");
+      const res = await fetch(`/meal/${encodeURIComponent(name)}`);
+      const data = await res.json();
+      if (data.error) return alert("Meal not found");
+      document.querySelector("#targetRatio").value = data.targetRatio;
+      document.querySelector("#foodTable tbody").innerHTML = "";
+      data.rows.forEach(r => addFoodRow(r.food, r.type, r.grams));
+      triggerRecalc();
+    }
+
+    async function deleteMeal() {
+      const name = document.getElementById("mealName").value.trim();
+      if (!name) return alert("Please enter a meal name to delete.");
+
+      const confirmDelete = confirm(`Are you sure you want to delete the meal "${name}"?`);
+      if (!confirmDelete) return;
+
+      const res = await fetch(`/delete-meal/${encodeURIComponent(name)}`, { method: "DELETE" });
+      const result = await res.json();
+
+      if (result.success) {
+        alert(`Meal "${name}" deleted.`);
+        loadMealNames();
+        document.getElementById("mealName").value = "";
+        document.querySelector("#foodTable tbody").innerHTML = "";
+        triggerRecalc();
+      } else {
+        alert(`❌ Could not delete meal: ${result.error || "Unknown error"}`);
+      }
+    }
+
+    async function addNewFood() {
+      const name = document.getElementById("newName").value.trim();
+      const prot = parseFloat(document.getElementById("newProt").value);
+      const fat = parseFloat(document.getElementById("newFat").value);
+      const carb = parseFloat(document.getElementById("newCarb").value);
+      const status = document.getElementById("addStatus");
+      if (!name || isNaN(prot) || isNaN(fat) || isNaN(carb)) {
+        status.textContent = "❌ Please fill out all fields with valid values.";
+        return;
+      }
+      const newFood = { Item: name, Protein: prot, Fat: fat, Carbs: carb };
+      try {
+        const res = await fetch("/add-food", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newFood)
+        });
+        const result = await res.json();
+        if (result.success) {
+          foodData.push(newFood);
+          foodData.sort((a, b) => a.Item.localeCompare(b.Item));
+          document.getElementById("foodOptions").innerHTML = foodData.map(f => `<option value="${f.Item}">`).join("");
+          status.textContent = `✅ Added "${name}" to the food list.`;
+          document.getElementById("newName").value = "";
+          document.getElementById("newProt").value = "";
+          document.getElementById("newFat").value = "";
+          document.getElementById("newCarb").value = "";
+        } else {
+          status.textContent = `❌ Error: ${result.error || 'Unknown issue'}`;
+        }
+      } catch (err) {
+        status.textContent = `❌ Request failed: ${err.message}`;
+      }
+    }
+
+    // Init
+    loadFoodOptions().then(() => {
+      addFoodRow();
+      triggerRecalc();
+    });
+    loadMealNames();
+  </script>
+</body>
+</html>

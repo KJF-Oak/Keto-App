@@ -1,0 +1,23 @@
+{
+  "Blueberry Yoghurt": {
+    "name": "Blueberry Yoghurt",
+    "targetRatio": 2,
+    "rows": [
+      {
+        "food": "Blueberries, Frozen",
+        "type": "Carbs",
+        "grams": "6"
+      },
+      {
+        "food": "Fresh Cream (Pams)",
+        "type": "Fat",
+        "grams": "12"
+      },
+      {
+        "food": "Coconut yoghurt (Cathedral Cove)",
+        "type": "Fat",
+        "grams": "14"
+      }
+    ]
+  }
+}
